@@ -17,6 +17,7 @@ export class BusinessService {
   // Create a new business
   async createBusiness(name: string): Promise<BusinessType> {
     try {
+      console.log('BusinessService: Starting business creation for:', name);
       const now = Date.now();
       const business: BusinessType = {
         id: generateId(),
@@ -25,11 +26,12 @@ export class BusinessService {
         updatedAt: now,
       };
 
+      console.log('BusinessService: About to insert business:', business);
       await this.database.businesses.insert(business);
-      console.log('Business created:', business);
+      console.log('BusinessService: Business inserted successfully:', business);
       return business;
     } catch (error) {
-      console.error('Error creating business:', error);
+      console.error('BusinessService: Error creating business:', error);
       throw error;
     }
   }
@@ -38,7 +40,7 @@ export class BusinessService {
   async getAllBusinesses(): Promise<BusinessType[]> {
     try {
       const businesses = await this.database.businesses.find().exec();
-      return businesses.map(business => business.toJSON());
+      return businesses.map((business: any) => business.toJSON());
     } catch (error) {
       console.error('Error fetching businesses:', error);
       throw error;
@@ -108,7 +110,9 @@ export class BusinessService {
   subscribeToBusinesses() {
     return this.database.businesses.find().$.pipe(
       // Convert RxDocument to plain object
-      map(businesses => businesses.map(business => business.toJSON())),
+      map((businesses: any) =>
+        businesses.map((business: any) => business.toJSON()),
+      ),
     );
   }
 }

@@ -28,10 +28,15 @@ const CreateBusinessScreen = () => {
 
   const initializeService = async () => {
     try {
+      console.log('Initializing business service...');
       const database = getDatabase();
+      console.log('Database available:', !!database);
       if (database) {
         const service = new BusinessService(database);
         setBusinessService(service);
+        console.log('Business service initialized successfully');
+      } else {
+        console.log('Database not available during service initialization');
       }
     } catch (error) {
       console.error('Error initializing business service:', error);
@@ -40,30 +45,50 @@ const CreateBusinessScreen = () => {
   };
 
   const handleCreateBusiness = async () => {
+    console.log('=== Create Business Flow Start ===');
+    console.log('Business name:', businessName.trim());
+    console.log('Business service available:', !!businessService);
+
     if (!businessName.trim()) {
+      console.log('Validation failed: No business name');
       Alert.alert('Error', 'Please enter a business name');
       return;
     }
 
     if (!businessService) {
+      console.log('Validation failed: No business service');
       Alert.alert('Error', 'Database service not available');
       return;
     }
 
     try {
+      console.log('Starting business creation...');
       setLoading(true);
-      await businessService.createBusiness(businessName.trim());
-      Alert.alert('Success', 'Business created successfully!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      const result = await businessService.createBusiness(businessName.trim());
+      console.log('Business creation successful:', result);
+      console.log('Showing success alert...');
+
+      Alert.alert(
+        '✅ Success!',
+        'Business created successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              console.log('Success alert OK pressed, navigating back');
+              navigation.goBack();
+            },
+          },
+        ],
+        { cancelable: false },
+      );
+      console.log('Success alert shown');
     } catch (error) {
       console.error('Error creating business:', error);
       Alert.alert('Error', 'Failed to create business');
     } finally {
       setLoading(false);
+      console.log('=== Create Business Flow End ===');
     }
   };
 

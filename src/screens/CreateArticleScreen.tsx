@@ -35,10 +35,15 @@ const CreateArticleScreen = () => {
 
   const initializeService = async () => {
     try {
+      console.log('Initializing article service...');
       const database = getDatabase();
+      console.log('Database available:', !!database);
       if (database) {
         const service = new ArticleService(database);
         setArticleService(service);
+        console.log('Article service initialized successfully');
+      } else {
+        console.log('Database not available during service initialization');
       }
     } catch (error) {
       console.error('Error initializing article service:', error);
@@ -47,17 +52,27 @@ const CreateArticleScreen = () => {
   };
 
   const handleCreateArticle = async () => {
+    console.log('=== Create Article Flow Start ===');
+    console.log('Article name:', articleName.trim());
+    console.log('Quantity:', quantity);
+    console.log('Selling price:', sellingPrice);
+    console.log('Business ID:', business.id);
+    console.log('Article service available:', !!articleService);
+
     if (!articleName.trim()) {
+      console.log('Validation failed: No article name');
       Alert.alert('Error', 'Please enter an article name');
       return;
     }
 
     if (!quantity.trim()) {
+      console.log('Validation failed: No quantity');
       Alert.alert('Error', 'Please enter a quantity');
       return;
     }
 
     if (!sellingPrice.trim()) {
+      console.log('Validation failed: No selling price');
       Alert.alert('Error', 'Please enter a selling price');
       return;
     }
@@ -66,39 +81,56 @@ const CreateArticleScreen = () => {
     const price = parseFloat(sellingPrice);
 
     if (isNaN(qty) || qty < 0) {
+      console.log('Validation failed: Invalid quantity');
       Alert.alert('Error', 'Please enter a valid quantity');
       return;
     }
 
     if (isNaN(price) || price < 0) {
+      console.log('Validation failed: Invalid selling price');
       Alert.alert('Error', 'Please enter a valid selling price');
       return;
     }
 
     if (!articleService) {
+      console.log('Validation failed: No article service');
       Alert.alert('Error', 'Database service not available');
       return;
     }
 
     try {
+      console.log('Starting article creation...');
       setLoading(true);
-      await articleService.createArticle(
+      const result = await articleService.createArticle(
         articleName.trim(),
         qty,
         price,
         business.id,
       );
-      Alert.alert('Success', 'Article created successfully!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      console.log('Article creation successful:', result);
+      console.log('Showing success alert...');
+
+      Alert.alert(
+        '✅ Success!',
+        'Article created successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              console.log('Success alert OK pressed, navigating back');
+              navigation.goBack();
+            },
+          },
+        ],
+        { cancelable: false },
+      );
+      console.log('Success alert shown');
     } catch (error) {
       console.error('Error creating article:', error);
       Alert.alert('Error', 'Failed to create article');
     } finally {
       setLoading(false);
+      console.log('=== Create Article Flow End ===');
     }
   };
 

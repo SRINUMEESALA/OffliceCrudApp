@@ -22,6 +22,12 @@ export class ArticleService {
     business_id: string,
   ): Promise<ArticleType> {
     try {
+      console.log('ArticleService: Starting article creation for:', {
+        name,
+        qty,
+        selling_price,
+        business_id,
+      });
       const now = Date.now();
       const article: ArticleType = {
         id: generateId(),
@@ -33,11 +39,12 @@ export class ArticleService {
         updatedAt: now,
       };
 
+      console.log('ArticleService: About to insert article:', article);
       await this.database.articles.insert(article);
-      console.log('Article created:', article);
+      console.log('ArticleService: Article inserted successfully:', article);
       return article;
     } catch (error) {
-      console.error('Error creating article:', error);
+      console.error('ArticleService: Error creating article:', error);
       throw error;
     }
   }
@@ -46,7 +53,7 @@ export class ArticleService {
   async getAllArticles(): Promise<ArticleType[]> {
     try {
       const articles = await this.database.articles.find().exec();
-      return articles.map(article => article.toJSON());
+      return articles.map((article: any) => article.toJSON());
     } catch (error) {
       console.error('Error fetching articles:', error);
       throw error;
@@ -62,7 +69,7 @@ export class ArticleService {
         })
         .sort({ createdAt: 'desc' })
         .exec();
-      return articles.map(article => article.toJSON());
+      return articles.map((article: any) => article.toJSON());
     } catch (error) {
       console.error('Error fetching articles by business ID:', error);
       throw error;
@@ -139,7 +146,11 @@ export class ArticleService {
   subscribeToArticles() {
     return this.database.articles
       .find()
-      .$.pipe(map(articles => articles.map(article => article.toJSON())));
+      .$.pipe(
+        map((articles: any) =>
+          articles.map((article: any) => article.toJSON()),
+        ),
+      );
   }
 
   // Subscribe to articles by business ID
@@ -149,6 +160,10 @@ export class ArticleService {
         selector: { business_id },
       })
       .sort({ createdAt: 'desc' })
-      .$.pipe(map(articles => articles.map(article => article.toJSON())));
+      .$.pipe(
+        map((articles: any) =>
+          articles.map((article: any) => article.toJSON()),
+        ),
+      );
   }
 }
