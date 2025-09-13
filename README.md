@@ -1,97 +1,255 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Offline-First CRUD Application
 
-# Getting Started
+A React Native application that demonstrates offline-first functionality using RxDB with SQLite storage and CouchDB replication. The app allows users to create and manage businesses and articles completely offline, with automatic synchronization when internet connectivity is available.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Features
 
-## Step 1: Start Metro
+- ✅ **Offline-First**: Works completely without internet connection
+- ✅ **Auto-Sync**: Automatically synchronizes with CouchDB when online
+- ✅ **Business Management**: Create, read, and delete businesses
+- ✅ **Article Management**: Create, read, and delete articles linked to businesses
+- ✅ **Real-time Updates**: Live data synchronization across devices
+- ✅ **Clean UI**: Modern and user-friendly interface
+- ✅ **Production Ready**: Built with React Native CLI for production deployment
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Technology Stack
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+- **React Native 0.81.4** - Cross-platform mobile development
+- **RxDB** - Reactive database with offline-first capabilities
+- **SQLite** - Local storage engine via react-native-sqlite-2
+- **CouchDB** - Cloud replication server
+- **React Navigation** - Navigation between screens
+- **TypeScript** - Type-safe development
 
-```sh
-# Using npm
-npm start
+## Data Models
 
-# OR using Yarn
-yarn start
+### Business Model
+
+```json
+{
+  "id": "string", // Unique ID (generated on frontend)
+  "name": "string", // Name of the Business
+  "createdAt": "number", // Creation timestamp
+  "updatedAt": "number" // Last update timestamp
+}
 ```
 
-## Step 2: Build and run your app
+### Article Model
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+```json
+{
+  "id": "string", // Unique ID (generated on frontend)
+  "name": "string", // Article name
+  "qty": "number", // Quantity in stock
+  "selling_price": "number", // Selling price
+  "business_id": "string", // Foreign key to Business
+  "createdAt": "number", // Creation timestamp
+  "updatedAt": "number" // Last update timestamp
+}
+```
+
+## Prerequisites
+
+Before running this application, make sure you have the following installed:
+
+- Node.js (v16 or higher)
+- React Native CLI
+- Android Studio (for Android development)
+- Xcode (for iOS development, macOS only)
+- CouchDB (optional, for sync functionality)
+
+## Installation
+
+1. **Clone the repository**
+
+   ```bash
+   git clone <repository-url>
+   cd OfflineCRUDApp
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+3. **iOS Setup (macOS only)**
+   ```bash
+   cd ios
+   bundle install
+   bundle exec pod install
+   cd ..
+   ```
+
+## Running the Application
 
 ### Android
 
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+```bash
+npx react-native run-android
 ```
 
 ### iOS
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+```bash
+npx react-native run-ios
 ```
 
-Then, and every time you update your native dependencies, run:
+## CouchDB Setup (Optional)
 
-```sh
-bundle exec pod install
+The application works completely offline, but to enable synchronization:
+
+1. **Install CouchDB**
+
+   - Download from [CouchDB official website](https://couchdb.apache.org/)
+   - Or use Docker: `docker run -p 5984:5984 couchdb:latest`
+
+2. **Configure CouchDB**
+
+   - Access CouchDB admin panel at `http://localhost:5984/_utils`
+   - Create databases: `businesses` and `articles`
+   - Set up authentication (username/password)
+
+3. **Update Configuration**
+   - Edit `src/services/replication.ts`
+   - Update `COUCHDB_URL`, `COUCHDB_USERNAME`, and `COUCHDB_PASSWORD`
+
+## How Offline Functionality Works
+
+### Local Storage
+
+- All data is stored locally using RxDB with SQLite
+- No backend API required - everything runs on the frontend
+- Data persists between app sessions
+
+### Synchronization
+
+- When online, the app automatically syncs with CouchDB
+- Changes are replicated bidirectionally
+- Conflict resolution is handled automatically by RxDB
+- Works seamlessly when switching between online/offline modes
+
+### Data Flow
+
+1. User creates/updates data → Stored locally in SQLite
+2. App detects internet connection → Syncs with CouchDB
+3. Other devices receive updates → Local database updated
+4. User continues working offline → All changes stored locally
+
+## Project Structure
+
+```
+src/
+├── database/
+│   └── database.ts          # Database configuration and initialization
+├── models/
+│   ├── Business.ts          # Business data model and schema
+│   └── Article.ts           # Article data model and schema
+├── services/
+│   ├── businessService.ts   # Business CRUD operations
+│   ├── articleService.ts    # Article CRUD operations
+│   └── replication.ts       # CouchDB replication setup
+└── screens/
+    ├── HomeScreen.tsx       # Main dashboard
+    ├── BusinessListScreen.tsx # List all businesses
+    ├── BusinessDetailScreen.tsx # Business details and articles
+    ├── CreateBusinessScreen.tsx # Create new business
+    └── CreateArticleScreen.tsx # Create new article
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+## Key Features Implementation
 
-```sh
-# Using npm
-npm run ios
+### Offline-First Architecture
 
-# OR using Yarn
-yarn ios
+- RxDB provides automatic offline capabilities
+- SQLite ensures data persistence
+- No network dependency for core functionality
+
+### Real-time Synchronization
+
+- RxDB CouchDB replication plugin
+- Automatic conflict resolution
+- Live data updates across devices
+
+### User Experience
+
+- Clean, intuitive interface
+- Loading states and error handling
+- Pull-to-refresh functionality
+- Form validation and feedback
+
+## Building for Production
+
+### Android APK
+
+```bash
+cd android
+./gradlew assembleRelease
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+The APK will be generated at:
+`android/app/build/outputs/apk/release/app-release.apk`
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+### iOS Archive
 
-## Step 3: Modify your app
+```bash
+cd ios
+xcodebuild -workspace OfflineCRUDApp.xcworkspace -scheme OfflineCRUDApp -configuration Release archive
+```
 
-Now that you have successfully run the app, let's make changes!
+## Testing Offline Functionality
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+1. **Start the app** with internet connection
+2. **Create some data** (businesses and articles)
+3. **Turn off internet** (airplane mode or disconnect WiFi)
+4. **Continue using the app** - all features work normally
+5. **Turn internet back on** - data automatically syncs
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+## Troubleshooting
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+### Common Issues
 
-## Congratulations! :tada:
+1. **Database initialization fails**
 
-You've successfully run and modified your React Native App. :partying_face:
+   - Ensure all dependencies are installed
+   - Check React Native version compatibility
 
-### Now what?
+2. **Sync not working**
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+   - Verify CouchDB is running and accessible
+   - Check network connectivity
+   - Review replication configuration
 
-# Troubleshooting
+3. **Build errors**
+   - Clean and rebuild: `npx react-native clean`
+   - Reset Metro cache: `npx react-native start --reset-cache`
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+### Debug Mode
 
-# Learn More
+- Enable RxDB dev mode for detailed logging
+- Check console for replication status
+- Monitor network requests in development
 
-To learn more about React Native, take a look at the following resources:
+## Contributing
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For issues and questions:
+
+- Check the troubleshooting section
+- Review RxDB documentation
+- Open an issue in the repository
+
+---
+
+**Note**: This application demonstrates a complete offline-first architecture without requiring any backend API. All data management is handled on the frontend using RxDB, making it perfect for scenarios where network connectivity is unreliable or unavailable.
