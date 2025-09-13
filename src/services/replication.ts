@@ -1,92 +1,125 @@
 import { Database } from '../database/database';
-import { RxReplicationWriteToMasterRow } from 'rxdb/plugins/replication-couchdb';
+import NetInfo from '@react-native-community/netinfo';
 
-// CouchDB configuration
-const COUCHDB_URL = 'http://localhost:5984'; // Change this to your CouchDB URL
-const COUCHDB_USERNAME = 'admin'; // Change this to your CouchDB username
-const COUCHDB_PASSWORD = 'password'; // Change this to your CouchDB password
+const COUCHDB_URL = 'http://localhost:5984';
+const COUCHDB_USERNAME = 'admin';
+const COUCHDB_PASSWORD = 'password';
+
+let replicationState = {
+  businessesReplication: null as any,
+  articlesReplication: null as any,
+  isOnline: false,
+  syncStatus: 'disconnected' as
+    | 'connected'
+    | 'disconnected'
+    | 'syncing'
+    | 'error',
+};
+
+const setupNetworkMonitoring = () => {
+  NetInfo.addEventListener(state => {
+    const wasOnline = replicationState.isOnline;
+    replicationState.isOnline = state.isConnected ?? false;
+
+    if (!wasOnline && replicationState.isOnline) {
+      replicationState.syncStatus = 'syncing';
+    } else if (wasOnline && !replicationState.isOnline) {
+      replicationState.syncStatus = 'disconnected';
+    }
+  });
+};
 
 export const setupReplication = async (database: Database) => {
   try {
-    // Check if syncCouchDB method is available
+    setupNetworkMonitoring();
+
     if (!database.businesses.syncCouchDB) {
-      console.warn(
-        'CouchDB replication plugin not available, skipping replication setup',
-      );
-      return null;
+      replicationState.syncStatus = 'disconnected';
+      return;
     }
 
-    // Setup replication for businesses collection
-    const businessesReplication = database.businesses.syncCouchDB({
+    const replicationOptions = {
       remote: `${COUCHDB_URL}/businesses`,
       options: {
-        live: true,
-        retry: true,
-        back_off_function: (delay: number) => {
-          if (delay === 0) return 1000;
-          return Math.min(delay * 2, 30000);
-        },
-        checkpoint: 'businesses-checkpoint',
         auth: {
           username: COUCHDB_USERNAME,
           password: COUCHDB_PASSWORD,
         },
+        live: true,
+        retry: true,
       },
-    });
+    };
 
-    // Setup replication for articles collection
-    const articlesReplication = database.articles.syncCouchDB({
+    replicationState.businessesReplication =
+      database.businesses.syncCouchDB(replicationOptions);
+
+    replicationState.articlesReplication = database.articles.syncCouchDB({
+      ...replicationOptions,
       remote: `${COUCHDB_URL}/articles`,
-      options: {
-        live: true,
-        retry: true,
-        back_off_function: (delay: number) => {
-          if (delay === 0) return 1000;
-          return Math.min(delay * 2, 30000);
-        },
-        checkpoint: 'articles-checkpoint',
-        auth: {
-          username: COUCHDB_USERNAME,
-          password: COUCHDB_PASSWORD,
-        },
+    });
+
+    replicationState.businessesReplication.error$.subscribe((error: any) => {
+      if (error) {
+        replicationState.syncStatus = 'error';
+      }
+    });
+
+    replicationState.businessesReplication.active$.subscribe((active: any) => {
+      if (active) {
+        replicationState.syncStatus = 'syncing';
+      }
+    });
+
+    replicationState.businessesReplication.received$.subscribe(
+      (received: any) => {
+        replicationState.syncStatus = 'syncing';
       },
+    );
+
+    replicationState.businessesReplication.sent$.subscribe((sent: any) => {
+      replicationState.syncStatus = 'syncing';
     });
 
-    // Handle replication events
-    businessesReplication.error$.subscribe(error => {
-      console.error('Businesses replication error:', error);
+    replicationState.articlesReplication.error$.subscribe((error: any) => {
+      if (error) {
+        replicationState.syncStatus = 'error';
+      }
     });
 
-    businessesReplication.active$.subscribe(active => {
-      console.log('Businesses replication active:', active);
+    replicationState.articlesReplication.active$.subscribe((active: any) => {
+      if (active) {
+        replicationState.syncStatus = 'syncing';
+      }
     });
 
-    articlesReplication.error$.subscribe(error => {
-      console.error('Articles replication error:', error);
+    replicationState.articlesReplication.received$.subscribe(
+      (received: any) => {
+        replicationState.syncStatus = 'syncing';
+      },
+    );
+
+    replicationState.articlesReplication.sent$.subscribe((sent: any) => {
+      replicationState.syncStatus = 'syncing';
     });
 
-    articlesReplication.active$.subscribe(active => {
-      console.log('Articles replication active:', active);
-    });
-
-    console.log('Replication setup completed');
-    return { businessesReplication, articlesReplication };
+    replicationState.syncStatus = 'connected';
   } catch (error) {
-    console.error('Error setting up replication:', error);
-    throw error;
+    replicationState.syncStatus = 'error';
   }
 };
 
-export const stopReplication = async (replications: any) => {
-  try {
-    if (replications.businessesReplication) {
-      await replications.businessesReplication.cancel();
-    }
-    if (replications.articlesReplication) {
-      await replications.articlesReplication.cancel();
-    }
-    console.log('Replication stopped');
-  } catch (error) {
-    console.error('Error stopping replication:', error);
+export const getSyncStatus = () => {
+  return {
+    isOnline: replicationState.isOnline,
+    syncStatus: replicationState.syncStatus,
+  };
+};
+
+export const forceSync = () => {
+  if (replicationState.businessesReplication) {
+    replicationState.businessesReplication.sync();
+  }
+  if (replicationState.articlesReplication) {
+    replicationState.articlesReplication.sync();
   }
 };

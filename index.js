@@ -1,6 +1,4 @@
-/**
- * @format
- */
+import './src/polyfills/crypto-polyfill';
 
 import { AppRegistry } from 'react-native';
 import App from './App';

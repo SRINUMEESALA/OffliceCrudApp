@@ -1,22 +1,20 @@
 import { addRxPlugin, createRxDatabase } from 'rxdb/plugins/core';
 import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
+// import { RxDBReplicationCouchDBPlugin } from 'rxdb/plugins/replication-couchdb';
 import { getRxStorageMemory } from 'rxdb/plugins/storage-memory';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 
-// Import schemas
 import { businessSchema } from '../models/Business';
 import { articleSchema } from '../models/Article';
 
-// Add plugins
 addRxPlugin(RxDBDevModePlugin);
 addRxPlugin(RxDBQueryBuilderPlugin);
+// addRxPlugin(RxDBReplicationCouchDBPlugin);
 
-// Disable dev mode warnings for cleaner console output
 import { disableWarnings } from 'rxdb/plugins/dev-mode';
 disableWarnings();
 
-// Database types
 export type BusinessDocType = {
   id: string;
   name: string;
@@ -39,9 +37,8 @@ export type DatabaseCollections = {
   articles: ArticleDocType;
 };
 
-export type Database = RxDatabase<DatabaseCollections>;
+export type Database = any;
 
-// Database instance
 let database: Database | null = null;
 
 export const createDatabase = async (): Promise<Database> => {
@@ -50,7 +47,6 @@ export const createDatabase = async (): Promise<Database> => {
   }
 
   try {
-    // Create database with memory storage (simplified approach)
     database = await createRxDatabase({
       name: 'offlinecruddb',
       storage: wrappedValidateAjvStorage({
@@ -58,7 +54,6 @@ export const createDatabase = async (): Promise<Database> => {
       }),
     });
 
-    // Add collections
     await database.addCollections({
       businesses: {
         schema: businessSchema,
@@ -68,10 +63,8 @@ export const createDatabase = async (): Promise<Database> => {
       },
     });
 
-    console.log('Database created successfully');
     return database;
   } catch (error) {
-    console.error('Error creating database:', error);
     throw error;
   }
 };

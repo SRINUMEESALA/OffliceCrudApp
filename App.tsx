@@ -1,21 +1,4 @@
-// Crypto polyfill must be imported first
-import 'react-native-get-random-values';
-import { getRandomValues } from 'react-native-get-random-values';
-import CryptoJS from 'crypto-js';
-
-// Set up crypto polyfill for React Native
-if (typeof global.crypto === 'undefined') {
-  global.crypto = {
-    getRandomValues,
-    subtle: {
-      digest: async (algorithm: string, data: Uint8Array) => {
-        const wordArray = CryptoJS.lib.WordArray.create(data);
-        const hash = CryptoJS.SHA256(wordArray);
-        return new Uint8Array(hash.sigBytes);
-      },
-    },
-  } as any;
-}
+import './src/polyfills/crypto-polyfill';
 
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
@@ -29,15 +12,15 @@ import {
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-// Import screens
 import HomeScreen from './src/screens/HomeScreen';
 import BusinessListScreen from './src/screens/BusinessListScreen';
 import BusinessDetailScreen from './src/screens/BusinessDetailScreen';
 import CreateBusinessScreen from './src/screens/CreateBusinessScreen';
 import CreateArticleScreen from './src/screens/CreateArticleScreen';
 
-// Import database
-import { createDatabase, getDatabase } from './src/database/database';
+import { createDatabase } from './src/database/database';
+import simpleDatabase from './src/database/simpleDatabase';
+import { setupReplication } from './src/services/replication';
 
 const Stack = createStackNavigator();
 
@@ -50,16 +33,19 @@ const App = (): React.JSX.Element => {
 
   const initializeApp = async () => {
     try {
-      console.log('Initializing app...');
+      try {
+        const database = await createDatabase();
+        try {
+          await setupReplication(database);
+        } catch (replicationError) {
+          // Continue without replication if setup fails
+        }
+      } catch (rxdbError) {
+        await simpleDatabase.initialize();
+      }
 
-      // Create database
-      const database = await createDatabase();
-      console.log('Database created successfully');
-
-      // Database is ready for CRUD operations
       setIsLoading(false);
     } catch (error) {
-      console.error('Error initializing app:', error);
       setIsLoading(false);
     }
   };
@@ -68,31 +54,35 @@ const App = (): React.JSX.Element => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Initializing Database...</Text>
+        <Text style={styles.loadingText}>Initializing...</Text>
       </View>
     );
   }
 
   return (
     <SafeAreaProvider>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <NavigationContainer>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
         <Stack.Navigator
           initialRouteName="Home"
           screenOptions={{
             headerStyle: {
-              backgroundColor: '#007AFF',
+              backgroundColor: '#ffffff',
+              elevation: 0,
+              shadowOpacity: 0,
+              borderBottomWidth: 1,
+              borderBottomColor: '#e1e1e1',
             },
-            headerTintColor: '#fff',
+            headerTintColor: '#000000',
             headerTitleStyle: {
-              fontWeight: 'bold',
+              fontWeight: '600',
             },
           }}
         >
           <Stack.Screen
             name="Home"
             component={HomeScreen}
-            options={{ title: 'Business Manager' }}
+            options={{ title: 'Offline CRUD App' }}
           />
           <Stack.Screen
             name="BusinessList"
@@ -130,7 +120,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: '#666666',
   },
 });
 

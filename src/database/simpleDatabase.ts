@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'react-native-uuid';
 
-// Simple in-memory database with AsyncStorage persistence
 export type BusinessType = {
   id: string;
   name: string;
@@ -28,7 +27,6 @@ class SimpleDatabase {
     if (this.initialized) return;
 
     try {
-      // Load data from AsyncStorage
       const businessesData = await AsyncStorage.getItem('businesses');
       const articlesData = await AsyncStorage.getItem('articles');
 
@@ -41,10 +39,8 @@ class SimpleDatabase {
       }
 
       this.initialized = true;
-      console.log('Simple database initialized successfully');
     } catch (error) {
-      console.error('Error initializing simple database:', error);
-      this.initialized = true; // Continue anyway
+      this.initialized = true;
     }
   }
 
@@ -53,17 +49,17 @@ class SimpleDatabase {
       await AsyncStorage.setItem('businesses', JSON.stringify(this.businesses));
       await AsyncStorage.setItem('articles', JSON.stringify(this.articles));
     } catch (error) {
-      console.error('Error saving to storage:', error);
+      throw new Error('Failed to save data to storage');
     }
   }
 
-  // Business operations
   async createBusiness(name: string): Promise<BusinessType> {
+    const now = Date.now();
     const business: BusinessType = {
       id: uuidv4(),
       name,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
     };
 
     this.businesses.push(business);
@@ -76,47 +72,60 @@ class SimpleDatabase {
   }
 
   async getBusinessById(id: string): Promise<BusinessType | null> {
-    return this.businesses.find(b => b.id === id) || null;
+    return this.businesses.find(business => business.id === id) || null;
   }
 
   async updateBusiness(id: string, name: string): Promise<BusinessType | null> {
-    const business = this.businesses.find(b => b.id === id);
-    if (business) {
-      business.name = name;
-      business.updatedAt = Date.now();
-      await this.saveToStorage();
-      return business;
+    const businessIndex = this.businesses.findIndex(
+      business => business.id === id,
+    );
+
+    if (businessIndex === -1) {
+      return null;
     }
-    return null;
+
+    this.businesses[businessIndex] = {
+      ...this.businesses[businessIndex],
+      name,
+      updatedAt: Date.now(),
+    };
+
+    await this.saveToStorage();
+    return this.businesses[businessIndex];
   }
 
   async deleteBusiness(id: string): Promise<boolean> {
-    const index = this.businesses.findIndex(b => b.id === id);
-    if (index !== -1) {
-      this.businesses.splice(index, 1);
-      // Also delete related articles
-      this.articles = this.articles.filter(a => a.business_id !== id);
-      await this.saveToStorage();
-      return true;
+    const businessIndex = this.businesses.findIndex(
+      business => business.id === id,
+    );
+
+    if (businessIndex === -1) {
+      return false;
     }
-    return false;
+
+    this.businesses.splice(businessIndex, 1);
+
+    this.articles = this.articles.filter(article => article.business_id !== id);
+
+    await this.saveToStorage();
+    return true;
   }
 
-  // Article operations
   async createArticle(
     name: string,
     qty: number,
     selling_price: number,
     business_id: string,
   ): Promise<ArticleType> {
+    const now = Date.now();
     const article: ArticleType = {
       id: uuidv4(),
       name,
       qty,
       selling_price,
       business_id,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
     };
 
     this.articles.push(article);
@@ -124,16 +133,16 @@ class SimpleDatabase {
     return article;
   }
 
+  async getArticlesByBusinessId(business_id: string): Promise<ArticleType[]> {
+    return this.articles.filter(article => article.business_id === business_id);
+  }
+
   async getAllArticles(): Promise<ArticleType[]> {
     return [...this.articles];
   }
 
-  async getArticlesByBusinessId(business_id: string): Promise<ArticleType[]> {
-    return this.articles.filter(a => a.business_id === business_id);
-  }
-
   async getArticleById(id: string): Promise<ArticleType | null> {
-    return this.articles.find(a => a.id === id) || null;
+    return this.articles.find(article => article.id === id) || null;
   }
 
   async updateArticle(
@@ -142,30 +151,36 @@ class SimpleDatabase {
     qty: number,
     selling_price: number,
   ): Promise<ArticleType | null> {
-    const article = this.articles.find(a => a.id === id);
-    if (article) {
-      article.name = name;
-      article.qty = qty;
-      article.selling_price = selling_price;
-      article.updatedAt = Date.now();
-      await this.saveToStorage();
-      return article;
+    const articleIndex = this.articles.findIndex(article => article.id === id);
+
+    if (articleIndex === -1) {
+      return null;
     }
-    return null;
+
+    this.articles[articleIndex] = {
+      ...this.articles[articleIndex],
+      name,
+      qty,
+      selling_price,
+      updatedAt: Date.now(),
+    };
+
+    await this.saveToStorage();
+    return this.articles[articleIndex];
   }
 
   async deleteArticle(id: string): Promise<boolean> {
-    const index = this.articles.findIndex(a => a.id === id);
-    if (index !== -1) {
-      this.articles.splice(index, 1);
-      await this.saveToStorage();
-      return true;
+    const articleIndex = this.articles.findIndex(article => article.id === id);
+
+    if (articleIndex === -1) {
+      return false;
     }
-    return false;
+
+    this.articles.splice(articleIndex, 1);
+    await this.saveToStorage();
+    return true;
   }
 }
 
-// Singleton instance
 const simpleDatabase = new SimpleDatabase();
-
 export default simpleDatabase;

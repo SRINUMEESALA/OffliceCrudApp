@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getDatabase } from '../database/database';
-import { BusinessService } from '../services/businessService';
+import { UnifiedBusinessService } from '../services/unifiedBusinessService';
 import { BusinessType } from '../models/Business';
 
 const HomeScreen = () => {
@@ -20,7 +20,7 @@ const HomeScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [businessService, setBusinessService] =
-    useState<BusinessService | null>(null);
+    useState<UnifiedBusinessService | null>(null);
 
   useEffect(() => {
     initializeService();
@@ -37,12 +37,9 @@ const HomeScreen = () => {
   const initializeService = async () => {
     try {
       const database = getDatabase();
-      if (database) {
-        const service = new BusinessService(database);
-        setBusinessService(service);
-      }
+      const service = new UnifiedBusinessService(database);
+      setBusinessService(service);
     } catch (error) {
-      console.error('Error initializing business service:', error);
       Alert.alert('Error', 'Failed to initialize database service');
     }
   };
@@ -52,10 +49,9 @@ const HomeScreen = () => {
 
     try {
       setLoading(true);
-      const businessList = await businessService.getAllBusinesses();
-      setBusinesses(businessList);
+      const businessesData = await businessService.getAllBusinesses();
+      setBusinesses(businessesData);
     } catch (error) {
-      console.error('Error loading businesses:', error);
       Alert.alert('Error', 'Failed to load businesses');
     } finally {
       setLoading(false);
@@ -68,10 +64,10 @@ const HomeScreen = () => {
     setRefreshing(false);
   };
 
-  const handleDeleteBusiness = (business: BusinessType) => {
+  const handleDeleteBusiness = (id: string, name: string) => {
     Alert.alert(
       'Delete Business',
-      `Are you sure you want to delete "${business.name}"?`,
+      `Are you sure you want to delete "${name}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -79,12 +75,15 @@ const HomeScreen = () => {
           style: 'destructive',
           onPress: async () => {
             if (!businessService) return;
+
             try {
-              await businessService.deleteBusiness(business.id);
-              await loadBusinesses();
-              Alert.alert('Success', 'Business deleted successfully');
+              const success = await businessService.deleteBusiness(id);
+              if (success) {
+                await loadBusinesses();
+              } else {
+                Alert.alert('Error', 'Failed to delete business');
+              }
             } catch (error) {
-              console.error('Error deleting business:', error);
               Alert.alert('Error', 'Failed to delete business');
             }
           },
@@ -97,10 +96,7 @@ const HomeScreen = () => {
     <TouchableOpacity
       style={styles.businessItem}
       onPress={() =>
-        navigation.navigate(
-          'BusinessDetail' as never,
-          { business: item } as never,
-        )
+        (navigation as any).navigate('BusinessDetail', { business: item })
       }
     >
       <View style={styles.businessInfo}>
@@ -111,9 +107,9 @@ const HomeScreen = () => {
       </View>
       <TouchableOpacity
         style={styles.deleteButton}
-        onPress={() => handleDeleteBusiness(item)}
+        onPress={() => handleDeleteBusiness(item.id, item.name)}
       >
-        <Text style={styles.deleteButtonText}>✕</Text>
+        <Text style={styles.deleteButtonText}>Delete</Text>
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -121,45 +117,38 @@ const HomeScreen = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Text style={styles.emptyStateText}>No businesses found</Text>
+      <Text style={styles.emptyStateSubtext}>
+        Create your first business to get started
+      </Text>
     </View>
   );
-
-  if (loading && !refreshing) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading businesses...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerText}>
-          {businesses.length}{' '}
-          {businesses.length === 1 ? 'Business' : 'Businesses'}
+          Database: {businessService?.getDatabaseType() || 'Loading...'}
         </Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('CreateBusiness' as never)}
-        >
-          <Text style={styles.addButtonText}>+</Text>
-        </TouchableOpacity>
       </View>
 
       <FlatList
         data={businesses}
-        keyExtractor={item => item.id}
         renderItem={renderBusinessItem}
-        ListEmptyComponent={renderEmptyState}
+        keyExtractor={item => item.id}
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={!loading ? renderEmptyState : null}
       />
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => (navigation as any).navigate('CreateBusiness')}
+      >
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -169,102 +158,104 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#666',
-  },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#e1e1e1',
   },
   headerText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 14,
+    color: '#666666',
+    fontWeight: '500',
   },
-  addButton: {
-    backgroundColor: '#007AFF',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+  list: {
+    flex: 1,
   },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  listContainer: {
-    padding: 20,
+  listContent: {
+    padding: 16,
     flexGrow: 1,
   },
   businessItem: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
+    backgroundColor: '#ffffff',
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 8,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowRadius: 2,
+    elevation: 2,
   },
   businessInfo: {
     flex: 1,
   },
   businessName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 4,
   },
   businessDate: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 14,
+    color: '#666666',
   },
   deleteButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#ff3b30',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#ff4444',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
   },
   deleteButtonText: {
-    fontSize: 18,
-    color: '#ff3b30',
-    fontWeight: 'bold',
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 50,
+    paddingTop: 100,
   },
   emptyStateText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#666',
-    marginBottom: 10,
+    fontWeight: '600',
+    color: '#666666',
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#999999',
+    textAlign: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
+  },
+  fabText: {
+    fontSize: 24,
+    color: '#ffffff',
+    fontWeight: '600',
   },
 });
 
