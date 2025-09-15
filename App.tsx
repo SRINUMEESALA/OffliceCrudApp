@@ -84,11 +84,11 @@ const App = (): React.JSX.Element => {
             component={HomeScreen}
             options={{ title: 'Offline CRUD App' }}
           />
-          <Stack.Screen
+          {/* <Stack.Screen
             name="BusinessList"
             component={BusinessListScreen}
             options={{ title: 'Businesses' }}
-          />
+          /> */}
           <Stack.Screen
             name="BusinessDetail"
             component={BusinessDetailScreen}
